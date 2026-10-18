@@ -1,8 +1,9 @@
 // The five-tab shell.
 //
-// Home · Health · Nutrition · Workout · Wellness. Stable forever: the contents
-// personalise, the mental map does not. Each domain owns an accent, so colour
-// tells you where you are before the label does.
+// Today · Sleep · Heart · Body · Workouts. These are the established Edge
+// mental model and the indices stored by notification payloads. Nutrition and
+// profile tasks remain pushed destinations, while Body owns the existing
+// wellness sub-tabs.
 //
 // There is no sixth tab, and the type system is what says so — [ShellDomain]
 // is a closed enum and [AppShell] takes a builder keyed by it, so "just add a
@@ -18,11 +19,11 @@ import 'theme.dart';
 
 /// The five primary destinations, in bar order.
 enum ShellDomain {
-  home('Home', LucideIcons.house, C.domHome),
-  health('Health', LucideIcons.heartPulse, C.domHealth),
-  nutrition('Nutrition', LucideIcons.utensils, C.domFood),
-  workout('Workout', LucideIcons.dumbbell, C.domMove),
-  wellness('Wellness', LucideIcons.leaf, C.domMind);
+  today('Today', LucideIcons.house, C.coral),
+  sleep('Sleep', LucideIcons.moon, C.purple),
+  heart('Heart', LucideIcons.heartPulse, C.red),
+  body('Body', LucideIcons.leaf, C.coral),
+  workouts('Workouts', LucideIcons.dumbbell, C.coral);
 
   const ShellDomain(this.label, this.icon, this.accent);
 
@@ -60,7 +61,7 @@ class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
     required this.builder,
-    this.initial = ShellDomain.home,
+    this.initial = ShellDomain.today,
     this.onSelect,
     this.banner,
   });
@@ -88,23 +89,25 @@ class _AppShellState extends State<AppShell> {
       backgroundColor: p.bg,
       body: SafeArea(
         bottom: false,
-        child: Column(children: [
-          Expanded(
-            child: IndexedStack(
-              index: _current.index,
-              children: [
-                // An unvisited tab is an empty box, not a built screen — the
-                // old shell built all forty screens' worth of state on launch.
-                for (final d in ShellDomain.values)
-                  if (_built.contains(d))
-                    widget.builder(c, d)
-                  else
-                    const SizedBox.shrink(),
-              ],
+        child: Column(
+          children: [
+            Expanded(
+              child: IndexedStack(
+                index: _current.index,
+                children: [
+                  // An unvisited tab is an empty box, not a built screen — the
+                  // old shell built all forty screens' worth of state on launch.
+                  for (final d in ShellDomain.values)
+                    if (_built.contains(d))
+                      widget.builder(c, d)
+                    else
+                      const SizedBox.shrink(),
+                ],
+              ),
             ),
-          ),
-          if (widget.banner != null) widget.banner!,
-        ]),
+            if (widget.banner != null) widget.banner!,
+          ],
+        ),
       ),
       bottomNavigationBar: _TabBar(current: _current, onTap: _select),
     );
@@ -169,7 +172,9 @@ class _Tab extends StatelessWidget {
             AnimatedContainer(
               duration: motion(c, Motion.base),
               padding: EdgeInsets.symmetric(
-                  horizontal: on ? S.x3 : 0, vertical: S.x1),
+                horizontal: on ? S.x3 : 0,
+                vertical: S.x1,
+              ),
               decoration: BoxDecoration(
                 color: on ? p.wash(domain.accent) : const Color(0x00000000),
                 borderRadius: R.rPill,

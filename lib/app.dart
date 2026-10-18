@@ -29,6 +29,7 @@ import 'ui2/screens/home_screen.dart';
 import 'ui2/screens/journal_compose.dart';
 import 'ui2/screens/log_workout.dart';
 import 'ui2/screens/nutrition_screen.dart';
+import 'ui2/screens/sleep_detail.dart';
 import 'ui2/screens/wellness_screen.dart';
 import 'ui2/screens/workout_screen.dart';
 import 'ui2/ui2.dart';
@@ -39,7 +40,8 @@ class OpenStrapApp extends StatefulWidget {
   State<OpenStrapApp> createState() => _OpenStrapAppState();
 }
 
-class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver {
+class _OpenStrapAppState extends State<OpenStrapApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -65,7 +67,8 @@ class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver
   void didChangePlatformBrightness() {
     // Keep the app in sync with the OS when the user is on "System".
     context.read<ThemeController>().updatePlatformBrightness(
-        WidgetsBinding.instance.platformDispatcher.platformBrightness);
+      WidgetsBinding.instance.platformDispatcher.platformBrightness,
+    );
   }
 
   @override
@@ -148,10 +151,12 @@ class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver
 /// [AppRoute.pairing], and `pairingSkipped` is false for anyone who actually
 /// paired, so they landed in FIRST-RUN onboarding with all their data behind
 /// it and "Skip for now" as the only way back. Onboarding happens once.
-AppRoute resolveRoute(AppRoute route,
-    {required bool pairingSkipped,
-    required bool profileSeen,
-    bool onboarded = false}) {
+AppRoute resolveRoute(
+  AppRoute route, {
+  required bool pairingSkipped,
+  required bool profileSeen,
+  bool onboarded = false,
+}) {
   var r = route;
   if (onboarded && (r == AppRoute.pairing || r == AppRoute.profile)) {
     return AppRoute.shell;
@@ -190,10 +195,12 @@ class _Gate extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: OnboardingBypass.revision,
       builder: (context, _, _) {
-        final route = resolveRoute(raw,
-            pairingSkipped: OnboardingBypass.pairingSkipped,
-            profileSeen: OnboardingBypass.profileSeen,
-            onboarded: _onboarded);
+        final route = resolveRoute(
+          raw,
+          pairingSkipped: OnboardingBypass.pairingSkipped,
+          profileSeen: OnboardingBypass.profileSeen,
+          onboarded: _onboarded,
+        );
         if (route != _telemetryLastRoute) {
           _telemetryLastRoute = route;
           TelemetryService.instance.setContext('app_route', route.name);
@@ -207,9 +214,11 @@ class _Gate extends StatelessWidget {
           AppRoute.failed => const _InitFailed(),
           AppRoute.welcome => const WelcomeScreen(),
           AppRoute.pairing => PairingScreen(
-              onSkip: () => OnboardingBypass.mark(OnboardingBypass.kPairing)),
+            onSkip: () => OnboardingBypass.mark(OnboardingBypass.kPairing),
+          ),
           AppRoute.profile => ProfileSetupScreen(
-              onDone: () => OnboardingBypass.mark(OnboardingBypass.kProfile)),
+            onDone: () => OnboardingBypass.mark(OnboardingBypass.kProfile),
+          ),
           AppRoute.shell => const _Shell(),
         };
         // Cold-start splash: covers the whole loading phase and cross-fades out
@@ -254,8 +263,10 @@ class _InitFailed extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('OpenStrap could not start',
-                    style: F.t2.copyWith(color: p.ink)),
+                Text(
+                  'OpenStrap could not start',
+                  style: F.t2.copyWith(color: p.ink),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Your data is still on this device — nothing was deleted. '
@@ -294,16 +305,16 @@ class _InitFailed extends StatelessWidget {
 
 /// A notification's tab index → the domain that now owns that content.
 ///
-/// The indices come from `tap_router.dart`, which still speaks the old
-/// five-tab vocabulary (Today · Sleep · Heart · Body · Workouts). Sleep, Heart
-/// and Body all folded into Health, so three of the five collapse onto one
-/// destination. Payloads from older builds keep working, which is the whole
-/// point — a notification is scheduled days before it is tapped.
+/// The indices are the user-visible Today · Sleep · Heart · Body · Workouts
+/// order. They are persisted in notification payloads, so the enum and this
+/// mapping move together rather than translating through a second vocabulary.
 ShellDomain domainForTab(int tab) => switch (tab) {
-      1 || 2 || 3 => ShellDomain.health,
-      4 => ShellDomain.workout,
-      _ => ShellDomain.home,
-    };
+  1 => ShellDomain.sleep,
+  2 => ShellDomain.heart,
+  3 => ShellDomain.body,
+  4 => ShellDomain.workouts,
+  _ => ShellDomain.today,
+};
 
 /// A deep-link sub-screen route → the domain it belongs to.
 ///
@@ -311,34 +322,34 @@ ShellDomain domainForTab(int tab) => switch (tab) {
 /// to Home rather than crashing a cold launch on a payload from an older
 /// build.
 ShellDomain domainForRoute(String route) => switch (routePath(route)) {
-      kRouteAiMorning || kRouteAiEvening => ShellDomain.home,
-      kRouteJournalCompose || kRouteBreathing => ShellDomain.wellness,
-      // Water is a journal field that lives on Nutrition — that is the tab
-      // behind the log screen, and where a "back" from it should land.
-      kRouteWater => ShellDomain.nutrition,
-      // The medication reminder. Wellness owns the Medication tab and its
-      // checklist, which is where a dose is actually recorded.
-      kRouteMeds => ShellDomain.wellness,
-      // The movement/sedentary nudges. Today (Home) is where the steps/rings
-      // they point at live; there is no move screen to push, so
-      // screenForRoute returns null for it — same shape as /meds below.
-      kRouteMovement => ShellDomain.home,
-      // Recovery-ready and step-goal notes. Both are about what already lives
-      // on Today, and neither has a screen of its own to push.
-      kRouteRecovery => ShellDomain.home,
-      kRouteSteps => ShellDomain.home,
-      kRouteWorkoutSuggestion => ShellDomain.workout,
-      // Emitted by the battery forecast (`app_state.dart`) and the weekly
-      // recap (`notification_center.dart`), and declared in `tap_router`
-      // alongside every other deep link — see the note below.
-      kRouteProfile => ShellDomain.home,
-      // No recap screen exists. Health is where a week of sleep, strain and
-      // recovery actually lives, so it is the nearest true destination — but
-      // the notification promises a REPORT, and until one is built the honest
-      // fix is upstream, in what that notification claims.
-      kRouteRecap => ShellDomain.health,
-      _ => ShellDomain.home,
-    };
+  kRouteAiMorning || kRouteAiEvening => ShellDomain.today,
+  kRouteJournalCompose || kRouteBreathing => ShellDomain.body,
+  // Water is a journal field that lives on Nutrition — that is the tab
+  // behind the log screen, and where a "back" from it should land.
+  kRouteWater => ShellDomain.body,
+  // The medication reminder. Wellness owns the Medication tab and its
+  // checklist, which is where a dose is actually recorded.
+  kRouteMeds => ShellDomain.body,
+  // The movement/sedentary nudges. Today (Home) is where the steps/rings
+  // they point at live; there is no move screen to push, so
+  // screenForRoute returns null for it — same shape as /meds below.
+  kRouteMovement => ShellDomain.today,
+  // Recovery-ready and step-goal notes. Both are about what already lives
+  // on Today, and neither has a screen of its own to push.
+  kRouteRecovery => ShellDomain.today,
+  kRouteSteps => ShellDomain.today,
+  kRouteWorkoutSuggestion => ShellDomain.workouts,
+  // Emitted by the battery forecast (`app_state.dart`) and the weekly
+  // recap (`notification_center.dart`), and declared in `tap_router`
+  // alongside every other deep link — see the note below.
+  kRouteProfile => ShellDomain.today,
+  // No recap screen exists. Health is where a week of sleep, strain and
+  // recovery actually lives, so it is the nearest true destination — but
+  // the notification promises a REPORT, and until one is built the honest
+  // fix is upstream, in what that notification claims.
+  kRouteRecap => ShellDomain.heart,
+  _ => ShellDomain.today,
+};
 
 // `/profile` and `/recap` are declared in `tap_router.dart` alongside every
 // other deep link. They used to be private literals here, which is exactly why
@@ -358,41 +369,38 @@ ShellDomain domainForRoute(String route) => switch (routePath(route)) {
 /// `/ai/*` used to be in that list too. It now lands on the briefing itself,
 /// which also carries the exact snapshot that was sent to produce it.
 Widget? screenForRoute(String route) => switch (routePath(route)) {
-      kRouteAiMorning =>
-        const AiBriefingScreen(period: BriefingPeriod.morning),
-      kRouteAiEvening =>
-        const AiBriefingScreen(period: BriefingPeriod.evening),
-      kRouteJournalCompose => const JournalCompose(),
-      kRouteBreathing => const CalmBreathing(),
-      // The hydration reminder lands on Nutrition, where the water tile carries
-      // its own − / + and is beside the food it belongs with. There used to be
-      // a whole screen for this one field; it was reachable ONLY from here,
-      // which is how the tile that everybody actually used stayed add-only for
-      // so long — the thing that could clear a value was behind a notification.
-      kRouteWater => const NutritionScreen(),
-      // The detected bout, with the three answers to it: log it, adjust the
-      // times first, or say it never happened.
-      // The medication reminder pushes NOTHING, and still lands on the
-      // checklist: it is a SUB-TAB of Wellness, so pushing anything would put
-      // a second copy of a shell tab over the shell. `_consume` asks Wellness
-      // for the tab instead (`WellnessScreen.tabRequest`) — the deep link is
-      // wired, the answer here stays null.
-      kRouteMeds => null,
-      // A CONSTRUCTOR ARGUMENT is right here and wrong for `/meds` above: this
-      // screen is PUSHED by `_consume`, so every tap builds a fresh one and the
-      // id reaches it. Wellness is a shell tab kept alive in the IndexedStack,
-      // never rebuilt on a tap, which is why that one needs a request notifier.
-      kRouteWorkoutSuggestion =>
-        WorkoutSuggestionScreen(focusId: routeId(route)),
-      // Battery, band and sources all live behind this one.
-      kRouteProfile => const ProfileHome(),
-      // The weekly recap used to land on the Health tab and push nothing,
-      // because there was no recap screen to push. There is now: the sweep's
-      // findings, which the app has been computing every night and delivering
-      // only as a notification you could dismiss into nothing.
-      kRouteRecap => const WhatChangedScreen(),
-      _ => null,
-    };
+  kRouteAiMorning => const AiBriefingScreen(period: BriefingPeriod.morning),
+  kRouteAiEvening => const AiBriefingScreen(period: BriefingPeriod.evening),
+  kRouteJournalCompose => const JournalCompose(),
+  kRouteBreathing => const CalmBreathing(),
+  // The hydration reminder lands on Nutrition, where the water tile carries
+  // its own − / + and is beside the food it belongs with. There used to be
+  // a whole screen for this one field; it was reachable ONLY from here,
+  // which is how the tile that everybody actually used stayed add-only for
+  // so long — the thing that could clear a value was behind a notification.
+  kRouteWater => const NutritionScreen(),
+  // The detected bout, with the three answers to it: log it, adjust the
+  // times first, or say it never happened.
+  // The medication reminder pushes NOTHING, and still lands on the
+  // checklist: it is a SUB-TAB of Wellness, so pushing anything would put
+  // a second copy of a shell tab over the shell. `_consume` asks Wellness
+  // for the tab instead (`WellnessScreen.tabRequest`) — the deep link is
+  // wired, the answer here stays null.
+  kRouteMeds => null,
+  // A CONSTRUCTOR ARGUMENT is right here and wrong for `/meds` above: this
+  // screen is PUSHED by `_consume`, so every tap builds a fresh one and the
+  // id reaches it. Wellness is a shell tab kept alive in the IndexedStack,
+  // never rebuilt on a tap, which is why that one needs a request notifier.
+  kRouteWorkoutSuggestion => WorkoutSuggestionScreen(focusId: routeId(route)),
+  // Battery, band and sources all live behind this one.
+  kRouteProfile => const ProfileHome(),
+  // The weekly recap used to land on the Health tab and push nothing,
+  // because there was no recap screen to push. There is now: the sweep's
+  // findings, which the app has been computing every night and delivering
+  // only as a notification you could dismiss into nothing.
+  kRouteRecap => const WhatChangedScreen(),
+  _ => null,
+};
 
 class _Shell extends StatefulWidget {
   const _Shell();
@@ -402,8 +410,11 @@ class _Shell extends StatefulWidget {
 
 class _ShellState extends State<_Shell> {
   /// Restore the last-selected tab so a relaunch lands where the user left off.
-  late ShellDomain _domain = ShellDomain
-      .values[Prefs.getInt(Prefs.shellTab, 0).clamp(0, ShellDomain.values.length - 1)];
+  late ShellDomain _domain =
+      ShellDomain.values[Prefs.getInt(
+        Prefs.shellTab,
+        0,
+      ).clamp(0, ShellDomain.values.length - 1)];
 
   /// AppShell owns its own selection and takes only an `initial`, so a
   /// programmatic jump re-keys it.
@@ -473,12 +484,14 @@ class _ShellState extends State<_Shell> {
       if (routePath(s) == kRouteMeds) {
         WellnessScreen.tabRequest.value = WellnessScreen.medsTab;
         WidgetsBinding.instance.addPostFrameCallback(
-            (_) => WellnessScreen.tabRequest.value = -1);
+          (_) => WellnessScreen.tabRequest.value = -1,
+        );
       }
       final screen = screenForRoute(s);
       if (screen != null) {
-        Navigator.of(context)
-            .push(MaterialPageRoute<void>(builder: (_) => screen));
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => screen));
       }
       return;
     }
@@ -515,11 +528,11 @@ class _ShellState extends State<_Shell> {
         Prefs.setInt(Prefs.shellTab, d.index);
       },
       builder: (c, d) => switch (d) {
-        ShellDomain.home => const HomeScreen(),
-        ShellDomain.health => const HealthScreen(),
-        ShellDomain.nutrition => const NutritionScreen(),
-        ShellDomain.workout => const WorkoutScreen(),
-        ShellDomain.wellness => const WellnessScreen(),
+        ShellDomain.today => const HomeScreen(),
+        ShellDomain.sleep => const SleepDetail(embedded: true),
+        ShellDomain.heart => const HealthScreen(title: 'Heart'),
+        ShellDomain.body => const WellnessScreen(title: 'Body'),
+        ShellDomain.workouts => const WorkoutScreen(title: 'Workouts'),
       },
     );
   }
@@ -547,8 +560,8 @@ class _LiveSessionBar extends StatelessWidget {
   /// row after a crash. Keying on the draft alone meant both of those left the
   /// workout open with no way to reach or end it, and `startWorkout` refuses
   /// every later workout while one is open.
-  static Activity? _activityFor(AppState app) => activityByName(
-      LiveDraft.current?.activityKey ?? app.activeWorkout?.type);
+  static Activity? _activityFor(AppState app) =>
+      activityByName(LiveDraft.current?.activityKey ?? app.activeWorkout?.type);
 
   Future<void> _resume(BuildContext c) async {
     final app = c.read<AppState>();
@@ -559,12 +572,16 @@ class _LiveSessionBar extends StatelessWidget {
     // The lifter's previous and best. Absent renders as "First time on this
     // lift", which would be a false claim on a resumed session.
     final history = await loadSetHistory();
-    await nav.push(MaterialPageRoute<void>(
-      builder: (_) => liveFor(a,
+    await nav.push(
+      MaterialPageRoute<void>(
+        builder: (_) => liveFor(
+          a,
           private: draft?.private ?? false,
           weightKg: draft?.weightKg,
-          host: activityHost(app, history: history)),
-    ));
+          host: activityHost(app, history: history),
+        ),
+      ),
+    );
   }
 
   @override
@@ -587,15 +604,21 @@ class _LiveSessionBar extends StatelessWidget {
           semanticLabel: 'Finish the session that is still running',
           onTap: () => app.stopWorkout(),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
-            child: Row(children: [
-              Expanded(
-                child: Text('Session running — tap to finish',
-                    style: F.body.copyWith(color: p.ink)),
-              ),
-              Icon(LucideIcons.square, size: 18, color: p.ink3),
-            ]),
+            padding: const EdgeInsets.symmetric(
+              horizontal: S.x4,
+              vertical: S.x3,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Session running — tap to finish',
+                    style: F.body.copyWith(color: p.ink),
+                  ),
+                ),
+                Icon(LucideIcons.square, size: 18, color: p.ink3),
+              ],
+            ),
           ),
         ),
       );
@@ -609,32 +632,42 @@ class _LiveSessionBar extends StatelessWidget {
         semanticLabel: 'Back to your ${a.name.toLowerCase()} session',
         onTap: () => _resume(c),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: S.x4, vertical: S.x3),
-          child: Row(children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration:
-                  BoxDecoration(color: p.wash(a.color), borderRadius: R.rSm),
-              child: Icon(a.icon, size: 16, color: p.on(a.color)),
-            ),
-            const SizedBox(width: S.x3),
-            Expanded(
-              child: Column(
+          padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: p.wash(a.color),
+                  borderRadius: R.rSm,
+                ),
+                child: Icon(a.icon, size: 16, color: p.on(a.color)),
+              ),
+              const SizedBox(width: S.x3),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(a.name,
-                        style: F.body.copyWith(
-                            color: p.ink, fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    Text('Session running',
-                        style: F.over.copyWith(color: p.ink3)),
-                  ]),
-            ),
-            Icon(LucideIcons.chevronUp, size: 20, color: p.ink3),
-          ]),
+                    Text(
+                      a.name,
+                      style: F.body.copyWith(
+                        color: p.ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'Session running',
+                      style: F.over.copyWith(color: p.ink3),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(LucideIcons.chevronUp, size: 20, color: p.ink3),
+            ],
+          ),
         ),
       ),
     );

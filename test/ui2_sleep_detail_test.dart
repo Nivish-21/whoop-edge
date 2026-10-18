@@ -19,28 +19,28 @@ Map<String, dynamic> _night({
   int deep = 85,
   bool elevated = false,
 }) => {
-      'duration_min': tst,
-      'in_bed_min': 486,
-      'awake_min': 20,
-      'efficiency': .91,
-      'onset_ts': _onset,
-      'wake_ts': _onset + 486 * 60,
-      'light_min': 170,
-      'deep_min': deep,
-      'rem_min': 95,
-      'hypnogram': [
-        {'t': _onset, 'stage': 'light'},
-        {'t': _onset + 3600, 'stage': 'deep'},
-        {'t': _onset + 7200, 'stage': 'rem'},
-        {'t': _onset + 486 * 60, 'stage': 'awake'},
-      ],
-      'nocturnal': {
-        'sleeping_hr_avg': 52,
-        'sleeping_hr_min': 46,
-        'vs_baseline_bpm': elevated ? 4.6 : 0.4,
-        'elevated': elevated,
-      },
-    };
+  'duration_min': tst,
+  'in_bed_min': 486,
+  'awake_min': 20,
+  'efficiency': .91,
+  'onset_ts': _onset,
+  'wake_ts': _onset + 486 * 60,
+  'light_min': 170,
+  'deep_min': deep,
+  'rem_min': 95,
+  'hypnogram': [
+    {'t': _onset, 'stage': 'light'},
+    {'t': _onset + 3600, 'stage': 'deep'},
+    {'t': _onset + 7200, 'stage': 'rem'},
+    {'t': _onset + 486 * 60, 'stage': 'awake'},
+  ],
+  'nocturnal': {
+    'sleeping_hr_avg': 52,
+    'sleeping_hr_min': 46,
+    'vs_baseline_bpm': elevated ? 4.6 : 0.4,
+    'elevated': elevated,
+  },
+};
 
 List<double> _flat(int n, double v) => List<double>.filled(n, v);
 
@@ -50,19 +50,39 @@ Future<void> _pump(WidgetTester t, SleepData d, {double scale = 1}) async {
   t.view.physicalSize = Size(390 * 3, 5200 * 3 * scale);
   t.view.devicePixelRatio = 3;
   addTearDown(t.view.reset);
-  await t.pumpWidget(MediaQuery(
-    data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-    child: MaterialApp(
-      theme: buildTheme(Brightness.light),
-      home: SleepDetail(data: d),
+  await t.pumpWidget(
+    MediaQuery(
+      data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light),
+        home: SleepDetail(data: d),
+      ),
     ),
-  ));
+  );
   await t.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('a measure inside the middle half of your nights is typical',
-      (t) async {
+  testWidgets('the embedded sleep view leaves shell navigation to its parent', (
+    t,
+  ) async {
+    final d = SleepData(day: '2026-05-20', night: _night());
+    await t.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light),
+        home: SizedBox.expand(child: SleepDetail(data: d, embedded: true)),
+      ),
+    );
+    await t.pumpAndSettle();
+
+    expect(find.byType(Scaffold), findsNothing);
+    expect(find.bySemanticsLabel('Back'), findsNothing);
+    expect(find.text('Sleep'), findsOneWidget);
+  });
+
+  testWidgets('a measure inside the middle half of your nights is typical', (
+    t,
+  ) async {
     await _pump(
       t,
       SleepData(
@@ -77,19 +97,21 @@ void main() {
     expect(find.textContaining('Typical for you'), findsWidgets);
   });
 
-  testWidgets('a short night is measured against the median, not the band edge',
-      (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        // 60 minutes under a history that never moves.
-        night: _night(tst: 340),
-        tstHistory: _flat(20, 400),
-      ),
-    );
-    expect(find.textContaining('1h 00m shorter than usual'), findsOneWidget);
-  });
+  testWidgets(
+    'a short night is measured against the median, not the band edge',
+    (t) async {
+      await _pump(
+        t,
+        SleepData(
+          day: '2026-05-20',
+          // 60 minutes under a history that never moves.
+          night: _night(tst: 340),
+          tstHistory: _flat(20, 400),
+        ),
+      );
+      expect(find.textContaining('1h 00m shorter than usual'), findsOneWidget);
+    },
+  );
 
   testWidgets('an extreme night and an elevated sleeping heart rate are called '
       'out; nothing else is', (t) async {
@@ -141,16 +163,22 @@ void main() {
   // precision the range exists to retire.
   group('stage ranges', () {
     Map<String, dynamic> staged({double? conf}) => {
-          ..._night(tst: 420, deep: 80),
-          'light_min': 250,
-          'rem_min': 90,
-          'awake_min': 60,
-          'stages_confidence': ?conf,
-        };
+      ..._night(tst: 420, deep: 80),
+      'light_min': 250,
+      'rem_min': 90,
+      'awake_min': 60,
+      'stages_confidence': ?conf,
+    };
 
     testWidgets('a stage is a range, never a count', (t) async {
-      await _pump(t,
-          SleepData(day: '2026-05-20', night: staged(), tstHistory: _flat(20, 420)));
+      await _pump(
+        t,
+        SleepData(
+          day: '2026-05-20',
+          night: staged(),
+          tstHistory: _flat(20, 420),
+        ),
+      );
       // No confidence published => the WIDEST interval, which is the honest
       // default: we do not know how well we saw the night, so we say least.
       // deep 80m, half-width 0.75x = 60m.
@@ -167,11 +195,13 @@ void main() {
 
     testWidgets('a better-seen night gets a narrower range', (t) async {
       await _pump(
-          t,
-          SleepData(
-              day: '2026-05-20',
-              night: staged(conf: 0.6), // the segmenter's ceiling
-              tstHistory: _flat(20, 420)));
+        t,
+        SleepData(
+          day: '2026-05-20',
+          night: staged(conf: 0.6), // the segmenter's ceiling
+          tstHistory: _flat(20, 420),
+        ),
+      );
       // Same 80 minutes, half-width 0.45x = 36m. Narrower than the 60m above,
       // from the night's own confidence rather than one published figure.
       expect(find.text('44m–1h 56m'), findsNWidgets(2));
@@ -192,13 +222,16 @@ void main() {
         ),
       );
       expect(find.textContaining('more than usual'), findsNothing);
-      expect(find.textContaining('Not far enough from usual to call'),
-          findsOneWidget);
+      expect(
+        find.textContaining('Not far enough from usual to call'),
+        findsOneWidget,
+      );
     });
   });
 
-  testWidgets('an ordinary night says so rather than manufacturing a finding',
-      (t) async {
+  testWidgets('an ordinary night says so rather than manufacturing a finding', (
+    t,
+  ) async {
     await _pump(
       t,
       SleepData(
@@ -212,8 +245,9 @@ void main() {
     expect(find.textContaining('Nothing stood out'), findsOneWidget);
   });
 
-  testWidgets('with no history the screen compares nothing and claims nothing',
-      (t) async {
+  testWidgets('with no history the screen compares nothing and claims nothing', (
+    t,
+  ) async {
     await _pump(
       t,
       SleepData(
@@ -247,9 +281,16 @@ void main() {
             ],
           },
           need: const Metric(
-              value: 462, unit: 'min', confidence: .7, tier: MetricTier.estimate),
+            value: 462,
+            unit: 'min',
+            confidence: .7,
+            tier: MetricTier.estimate,
+          ),
           bedtime: const Metric(
-              value: 1360, confidence: .7, tier: MetricTier.estimate),
+            value: 1360,
+            confidence: .7,
+            tier: MetricTier.estimate,
+          ),
           tstHistory: _flat(20, 440),
           deepHistory: [for (var i = 0; i < 20; i++) 60 + i.toDouble()],
           effHistory: _flat(20, 91),
@@ -269,14 +310,16 @@ void main() {
     // First half of the window never recorded, second half deep. The old
     // `_ => SleepStage.light` catch-all turned the whole first half into light
     // sleep, so a band that dropped four hours drew — and read — as a night.
-    final st = SleepData(night: {
-      ..._night(),
-      'hypnogram': [
-        {'t': _onset, 'stage': 'unobserved'},
-        {'t': _onset + 243 * 60, 'stage': 'deep'},
-        {'t': _onset + 486 * 60, 'stage': 'deep'},
-      ],
-    }).stages;
+    final st = SleepData(
+      night: {
+        ..._night(),
+        'hypnogram': [
+          {'t': _onset, 'stage': 'unobserved'},
+          {'t': _onset + 243 * 60, 'stage': 'deep'},
+          {'t': _onset + 486 * 60, 'stage': 'deep'},
+        ],
+      },
+    ).stages;
     expect(st.first, isNull);
     expect(st.last, SleepStage.deep);
     // Nothing in the hole became a stage, and nothing outside it became a hole.
@@ -284,8 +327,9 @@ void main() {
     expect(st.contains(SleepStage.light), isFalse);
   });
 
-  testWidgets('a night with a hole names the window it was measured over',
-      (t) async {
+  testWidgets('a night with a hole names the window it was measured over', (
+    t,
+  ) async {
     await _pump(
       t,
       SleepData(
@@ -308,8 +352,9 @@ void main() {
 
   // ── SLP-02 · settling time, forced windows only ───────────────────────────
 
-  testWidgets('sleep-onset latency is banded, and only on your own window',
-      (t) async {
+  testWidgets('sleep-onset latency is banded, and only on your own window', (
+    t,
+  ) async {
     await _pump(
       t,
       SleepData(
@@ -324,10 +369,7 @@ void main() {
   });
 
   testWidgets('an auto window never claims a settling time', (t) async {
-    await _pump(
-      t,
-      SleepData(day: '2026-05-20', night: _night(), solMin: 37),
-    );
+    await _pump(t, SleepData(day: '2026-05-20', night: _night(), solMin: 37));
     expect(find.textContaining('to asleep'), findsNothing);
   });
 
@@ -343,11 +385,15 @@ void main() {
         longestSleepMin: 162,
       ),
     );
-    expect(find.textContaining('At least 3 wake-ups of 5 minutes or more'),
-        findsOneWidget);
+    expect(
+      find.textContaining('At least 3 wake-ups of 5 minutes or more'),
+      findsOneWidget,
+    );
     expect(find.textContaining('invisible to a wrist'), findsOneWidget);
     expect(
-        find.textContaining('Longest unbroken stretch 2h 42m'), findsOneWidget);
+      find.textContaining('Longest unbroken stretch 2h 42m'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('tonight is one takeaway, not six numbers', (t) async {
@@ -357,11 +403,22 @@ void main() {
         day: '2026-05-20',
         night: _night(),
         need: const Metric(
-            value: 462, unit: 'min', confidence: .7, tier: MetricTier.estimate),
+          value: 462,
+          unit: 'min',
+          confidence: .7,
+          tier: MetricTier.estimate,
+        ),
         debt: const Metric(
-            value: 22, unit: 'min', confidence: .7, tier: MetricTier.estimate),
-        bedtime:
-            const Metric(value: 1360, confidence: .7, tier: MetricTier.estimate),
+          value: 22,
+          unit: 'min',
+          confidence: .7,
+          tier: MetricTier.estimate,
+        ),
+        bedtime: const Metric(
+          value: 1360,
+          confidence: .7,
+          tier: MetricTier.estimate,
+        ),
       ),
     );
     expect(find.text('lights out'), findsOneWidget);
