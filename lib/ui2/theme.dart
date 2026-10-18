@@ -39,6 +39,7 @@ class C {
   static const greenD = Color(0xFF16A34A);
   static const blue = Color(0xFF3B82F6);
   static const purple = Color(0xFF8B5CF6);
+  static const coral = Color(0xFFFF6B47);
 
   // secondary
   static const orange = Color(0xFFF97316);
@@ -114,9 +115,24 @@ class C {
   /// Every accent the contrast test sweeps. Adding a colour above without
   /// adding it here means it ships unverified.
   static const all = <Color>[
-    green, greenD, blue, purple, orange, red, teal, yellow, pink, indigo,
-    sky, blueSoft,
-    domHome, domHealth, domFood, domMove, domMind,
+    green,
+    greenD,
+    blue,
+    purple,
+    coral,
+    orange,
+    red,
+    teal,
+    yellow,
+    pink,
+    indigo,
+    sky,
+    blueSoft,
+    domHome,
+    domHealth,
+    domFood,
+    domMove,
+    domMind,
   ];
 }
 
@@ -129,20 +145,24 @@ class P {
 
   static P of(BuildContext c) => P(Theme.of(c).brightness == Brightness.dark);
 
-  Color get bg => dark ? const Color(0xFF0B1017) : C.n50;
-  Color get card => dark ? const Color(0xFF151C26) : C.white;
-  Color get card2 => dark ? const Color(0xFF1D2632) : C.n100;
-  Color get line => dark ? const Color(0xFF232D3B) : C.n200;
-  Color get track => dark ? const Color(0xFF232D3B) : C.n200;
+  // Edge is most often read before bed or straight after waking. The dark
+  // palette therefore uses a low-blue charcoal rather than a cold slate: it
+  // matches the approved legacy captures without making the light appearance
+  // a second product.
+  Color get bg => dark ? const Color(0xFF14110E) : C.n50;
+  Color get card => dark ? const Color(0xFF201B16) : C.white;
+  Color get card2 => dark ? const Color(0xFF2A241D) : C.n100;
+  Color get line => dark ? const Color(0xFF373027) : C.n200;
+  Color get track => dark ? const Color(0xFF373027) : C.n200;
 
-  Color get ink => dark ? const Color(0xFFF1F5F9) : C.n900;
-  Color get ink2 => dark ? const Color(0xFF94A3B8) : C.n600;
+  Color get ink => dark ? const Color(0xFFF7F0E7) : C.n900;
+  Color get ink2 => dark ? const Color(0xFFC4B8AA) : C.n600;
 
   /// The muted caption ink. Hand-solved to clear 4.5:1 on [card2], the darkest
   /// (light theme) / lightest (dark theme) surface it can sit on — so it is
   /// legible on every surface, not just the one it was eyeballed against.
   /// The values it replaces measured 4.34:1 and 3.21:1 respectively.
-  Color get ink3 => dark ? const Color(0xFF7F8DA0) : const Color(0xFF627188);
+  Color get ink3 => dark ? const Color(0xFFAEA295) : const Color(0xFF627188);
 
   /// The ink that goes on top of a [fill]. White by construction — [fill]
   /// darkens the accent until white clears AA on it.
@@ -167,7 +187,8 @@ class P {
 
   /// [accent] rendered as a FILLED surface under [inkOnFill], darkened until
   /// white text on it clears [_aa]. Buttons, chips, CTA badges.
-  Color fill(Color accent) => _solve(accent, const Color(0xFF000000), C.white, false);
+  Color fill(Color accent) =>
+      _solve(accent, const Color(0xFF000000), C.white, false);
 
   /// A tinted wash of [accent] — the InsightCard / Pill / active-tab
   /// background. Never carries text of its own colour; pair it with [on].
@@ -209,8 +230,12 @@ class P {
   /// Binary-search the lerp from [c] toward [toward] for the first colour that
   /// clears [_aa] against [against]. 24 steps is well past 8-bit resolution.
   static Color _solve(Color c, Color toward, Color against, bool dark) {
-    final key = Object.hash(c.toARGB32(), toward.toARGB32(),
-        against.toARGB32(), dark);
+    final key = Object.hash(
+      c.toARGB32(),
+      toward.toARGB32(),
+      against.toARGB32(),
+      dark,
+    );
     final hit = _cache[key];
     if (hit != null) return hit;
     var out = c;
@@ -261,83 +286,97 @@ class F {
 
   // The 7 steps.
   static const display = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 34,
-      height: 40 / 34,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -.8);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 34,
+    height: 40 / 34,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -.8,
+  );
   static const t1 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 28,
-      height: 34 / 28,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -.5);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 28,
+    height: 34 / 28,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -.5,
+  );
   static const t2 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 22,
-      height: 28 / 22,
-      fontWeight: FontWeight.w600,
-      letterSpacing: -.4);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 22,
+    height: 28 / 22,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.4,
+  );
   static const head = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 17,
-      height: 24 / 17,
-      fontWeight: FontWeight.w600,
-      letterSpacing: -.2);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 17,
+    height: 24 / 17,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.2,
+  );
   static const body = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 15,
-      height: 22 / 15,
-      letterSpacing: -.1);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 15,
+    height: 22 / 15,
+    letterSpacing: -.1,
+  );
   static const cap = TextStyle(
-      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 13, height: 18 / 13);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 13,
+    height: 18 / 13,
+  );
   static const over = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 11,
-      height: 14 / 11,
-      fontWeight: FontWeight.w600,
-      letterSpacing: .5);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 11,
+    height: 14 / 11,
+    fontWeight: FontWeight.w600,
+    letterSpacing: .5,
+  );
 
   // Numerals — a parallel display ramp. Tabular, so a live value never jitters
   // its own layout as digits change.
   static const n48 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 48,
-      height: 1,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -1.8,
-      fontFeatures: _tab);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 48,
+    height: 1,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -1.8,
+    fontFeatures: _tab,
+  );
   static const n34 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 34,
-      height: 1,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -1.2,
-      fontFeatures: _tab);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 34,
+    height: 1,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -1.2,
+    fontFeatures: _tab,
+  );
   static const n24 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 24,
-      height: 1,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -.7,
-      fontFeatures: _tab);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 24,
+    height: 1,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -.7,
+    fontFeatures: _tab,
+  );
   static const n17 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 17,
-      height: 1,
-      fontWeight: FontWeight.w600,
-      letterSpacing: -.3,
-      fontFeatures: _tab);
+    fontFamily: _f,
+    fontFamilyFallback: _fb,
+    fontSize: 17,
+    height: 1,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.3,
+    fontFeatures: _tab,
+  );
 }
 
 /// ── SPACING ── 4pt base ───────────────────────────────────────────────────
@@ -445,8 +484,13 @@ class _Gated extends PageTransitionsBuilder {
   const _Gated(this.inner);
 
   @override
-  Widget buildTransitions<T>(PageRoute<T> route, BuildContext c,
-      Animation<double> animation, Animation<double> secondary, Widget child) {
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext c,
+    Animation<double> animation,
+    Animation<double> secondary,
+    Widget child,
+  ) {
     if (!Motion.enabled(c)) return child;
     return inner.buildTransitions(route, c, animation, secondary, child);
   }
@@ -457,15 +501,20 @@ ThemeData buildTheme(Brightness b) {
   return ThemeData(
     brightness: b,
     scaffoldBackgroundColor: p.bg,
-    colorScheme:
-        ColorScheme.fromSeed(seedColor: C.green, brightness: b, surface: p.card),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: C.green,
+      brightness: b,
+      surface: p.card,
+    ),
     fontFamily: '.SF Pro Text',
     fontFamilyFallback: const ['Manrope'],
     splashFactory: NoSplash.splashFactory,
     highlightColor: const Color(0x00000000),
-    pageTransitionsTheme: PageTransitionsTheme(builders: {
-      for (final e in const PageTransitionsTheme().builders.entries)
-        e.key: _Gated(e.value),
-    }),
+    pageTransitionsTheme: PageTransitionsTheme(
+      builders: {
+        for (final e in const PageTransitionsTheme().builders.entries)
+          e.key: _Gated(e.value),
+      },
+    ),
   );
 }

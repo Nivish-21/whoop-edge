@@ -37,39 +37,38 @@ import 'package:openstrap_edge/ui2/ui2.dart';
 final _shot = GlobalKey();
 
 Widget _frame(Widget child, Brightness b, double scale) => MediaQuery(
-      data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(b),
-        home: Builder(
-          builder: (c) => Scaffold(
-            backgroundColor: P.of(c).bg,
-            // Top-aligned, not centred: a component that grows past the
-            // viewport at 2x text should be tall in the golden, not clipped
-            // in the middle.
-            // A scroll view, because that is what every real screen is: it
-            // hands the component an unbounded height, so a card shrink-wraps
-            // its content here exactly as it does in the app.
-            body: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(S.x4),
-                child: RepaintBoundary(key: _shot, child: child),
-              ),
-            ),
+  data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+  child: MaterialApp(
+    debugShowCheckedModeBanner: false,
+    theme: buildTheme(b),
+    home: Builder(
+      builder: (c) => Scaffold(
+        backgroundColor: P.of(c).bg,
+        // Top-aligned, not centred: a component that grows past the
+        // viewport at 2x text should be tall in the golden, not clipped
+        // in the middle.
+        // A scroll view, because that is what every real screen is: it
+        // hands the component an unbounded height, so a card shrink-wraps
+        // its content here exactly as it does in the app.
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(S.x4),
+            child: RepaintBoundary(key: _shot, child: child),
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
 
 /// Load the bundled type so the goldens show words instead of the test
 /// harness's block glyphs. A golden nobody can read is a golden nobody
 /// reviews, and an unreviewed golden gets `--update-goldens`-ed over the top
 /// of the bug it was supposed to catch.
 Future<void> _loadType() async {
-  final files = Directory('assets/fonts/Manrope')
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.ttf'));
+  final files = Directory(
+    'assets/fonts/Manrope',
+  ).listSync().whereType<File>().where((f) => f.path.endsWith('.ttf'));
   // Registered under both names. `.SF Pro Text` does not exist off Apple
   // hardware, so on Android and in the test harness the type IS Manrope —
   // registering it under the primary name makes the goldens show what a
@@ -77,9 +76,11 @@ Future<void> _loadType() async {
   for (final family in const ['Manrope', '.SF Pro Text']) {
     final loader = FontLoader(family);
     for (final f in files) {
-      loader.addFont(f
-          .readAsBytes()
-          .then((b) => ByteData.sublistView(Uint8List.fromList(b))));
+      loader.addFont(
+        f.readAsBytes().then(
+          (b) => ByteData.sublistView(Uint8List.fromList(b)),
+        ),
+      );
     }
     await loader.load();
   }
@@ -135,32 +136,68 @@ void main() {
     }
   }
 
-  testWidgets('the shell has five destinations and cannot grow a sixth',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
-      home: AppShell(
-        builder: (c, d) => Center(child: Text(d.label)),
+  testWidgets('the shell has five destinations and cannot grow a sixth', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light),
+        home: AppShell(builder: (c, d) => Center(child: Text(d.label))),
       ),
-    ));
+    );
     expect(ShellDomain.values, hasLength(5));
     for (final d in ShellDomain.values) {
-      expect(find.text(d.label), findsWidgets, reason: '${d.label} tab missing');
+      expect(
+        find.text(d.label),
+        findsWidgets,
+        reason: '${d.label} tab missing',
+      );
+    }
+  });
+
+  testWidgets('each restored shell destination builds from its own tab', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark),
+        home: AppShell(
+          builder: (c, d) => Center(child: Text('screen: ${d.label}')),
+        ),
+      ),
+    );
+
+    for (final d in ShellDomain.values) {
+      await tester.tap(
+        find.byWidgetPredicate(
+          (w) => w is Pressable && w.semanticLabel == d.label,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('screen: ${d.label}'), findsOneWidget);
     }
   });
 
   testWidgets('every tap target in the shell clears 44 pt', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
-      home: AppShell(builder: (c, d) => const SizedBox.shrink()),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light),
+        home: AppShell(builder: (c, d) => const SizedBox.shrink()),
+      ),
+    );
     for (final e in tester.widgetList<Pressable>(find.byType(Pressable))) {
       if (e.onTap == null) continue;
       final size = tester.getSize(find.byWidget(e));
-      expect(size.height, greaterThanOrEqualTo(S.tap),
-          reason: '${e.semanticLabel} is ${size.height} pt tall');
-      expect(size.width, greaterThanOrEqualTo(S.tap),
-          reason: '${e.semanticLabel} is ${size.width} pt wide');
+      expect(
+        size.height,
+        greaterThanOrEqualTo(S.tap),
+        reason: '${e.semanticLabel} is ${size.height} pt tall',
+      );
+      expect(
+        size.width,
+        greaterThanOrEqualTo(S.tap),
+        reason: '${e.semanticLabel} is ${size.width} pt wide',
+      );
     }
   });
 
@@ -192,9 +229,13 @@ void main() {
             if (err.contains('overflowed')) broke.add('${e.key}: $err');
           }
         }
-        expect(broke, isEmpty,
-            reason: 'a card that overflows at an accessibility text size is a '
-                'measurement pushed off the screen:\n${broke.join('\n')}');
+        expect(
+          broke,
+          isEmpty,
+          reason:
+              'a card that overflows at an accessibility text size is a '
+              'measurement pushed off the screen:\n${broke.join('\n')}',
+        );
       });
     }
 
@@ -210,14 +251,20 @@ void main() {
           if (w.onTap == null) continue;
           final s = tester.getSize(find.byWidget(w));
           if (s.height < S.tap || s.width < S.tap) {
-            small.add('${e.key} · ${w.semanticLabel ?? 'unlabelled'} '
-                'is ${s.width} × ${s.height}');
+            small.add(
+              '${e.key} · ${w.semanticLabel ?? 'unlabelled'} '
+              'is ${s.width} × ${s.height}',
+            );
           }
         }
       }
-      expect(small, isEmpty,
-          reason: 'the 44 pt guarantee only held for the five shell tabs, '
-              'which is how seven sub-44 controls shipped:\n${small.join('\n')}');
+      expect(
+        small,
+        isEmpty,
+        reason:
+            'the 44 pt guarantee only held for the five shell tabs, '
+            'which is how seven sub-44 controls shipped:\n${small.join('\n')}',
+      );
     });
   });
 }

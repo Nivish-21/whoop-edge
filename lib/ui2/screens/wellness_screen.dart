@@ -38,7 +38,12 @@ import 'metric_detail.dart' show detailScaffold;
 import 'sleep_detail.dart';
 
 class WellnessScreen extends StatefulWidget {
-  const WellnessScreen({super.key});
+  /// The legacy Body tab owns Wellness's recovery, stress, breathing and
+  /// self-reported context. Only the label changes; the stateful sub-tab
+  /// contract stays intact for deep links such as `/meds`.
+  final String title;
+
+  const WellnessScreen({super.key, this.title = 'Wellness'});
 
   /// A deep link asking for one of the sub-tabs — [medsTab] from the dose
   /// reminder. -1 for the ordinary case: open where the screen opens.
@@ -216,8 +221,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
     // `select`, not `watch`: this screen lives in the shell's IndexedStack and
     // stays mounted, so a plain watch would rebuild it on every unrelated
     // AppState notification for the life of the app.
-    final showCycle =
-        c.select<AppState, bool>((a) => a.cycleTrackingEnabled);
+    final showCycle = c.select<AppState, bool>((a) => a.cycleTrackingEnabled);
     final tabs = showCycle ? _tabs : _tabs.take(_tabs.length - 1).toList();
     // Clamped rather than reset: switching Cycle off while standing on it
     // lands on Medication, not back at Mind.
@@ -231,9 +235,8 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
       padding: const EdgeInsets.fromLTRB(0, S.x4, 0, S.x16),
       children: [
         for (final w in <Widget>[
-          const ScreenTitle('Wellness'),
-          SubTabs(tabs, tab, (i) => setState(() => _tab = i),
-              color: C.domMind),
+          ScreenTitle(widget.title),
+          SubTabs(tabs, tab, (i) => setState(() => _tab = i), color: C.domMind),
           const SizedBox(height: S.x5),
           if (_loading)
             const Center(child: CircularProgressIndicator())
@@ -274,7 +277,8 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                 onTap: () async {
                   await Navigator.of(c).push(
                     MaterialPageRoute<void>(
-                        builder: (_) => const CalmBreathing()),
+                      builder: (_) => const CalmBreathing(),
+                    ),
                   );
                   await _load();
                 },
@@ -288,8 +292,9 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
             w
           else
             Padding(
-                padding: const EdgeInsets.symmetric(horizontal: S.x4),
-                child: w),
+              padding: const EdgeInsets.symmetric(horizontal: S.x4),
+              child: w,
+            ),
       ],
     );
   }
@@ -657,9 +662,9 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
       // putJournalFieldDef is create-only now — a duplicate lands here
       // instead of silently rewriting the first one's definition.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('You already track "$name".')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('You already track "$name".')));
         return;
       }
     }
@@ -1136,7 +1141,10 @@ Future<MedSchedule?> pickMedSchedule(
                 },
                 child: Container(
                   padding: const EdgeInsets.all(S.x4),
-                  decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
+                  decoration: BoxDecoration(
+                    color: p.card2,
+                    borderRadius: R.rMd,
+                  ),
                   child: Row(
                     children: [
                       Icon(LucideIcons.clock, size: 17, color: p.ink3),
@@ -1210,9 +1218,9 @@ Future<MedSchedule?> pickMedSchedule(
                 color: C.domMind,
                 onTap: picked.isEmpty
                     ? null
-                    : () => Navigator.of(sheet).pop(
-                        MedSchedule(minute, picked.toList()..sort()),
-                      ),
+                    : () => Navigator.of(
+                        sheet,
+                      ).pop(MedSchedule(minute, picked.toList()..sort())),
               ),
             ],
           ),
