@@ -17,6 +17,7 @@ import '../../health/health_import_state.dart' show storeName;
 import '../../state/app_state.dart';
 import '../ui2.dart';
 import '../screens/coach.dart' show CoachSetup, coachSubtitle;
+import '../screens/nutrition_screen.dart';
 import 'devices.dart';
 import 'settings.dart';
 
@@ -30,13 +31,17 @@ class SetRow extends StatelessWidget {
   final bool danger, chevron;
   final VoidCallback? onTap;
 
-  const SetRow(this.icon, this.color, this.title,
-      {super.key,
-      this.sub = '',
-      this.value = '',
-      this.danger = false,
-      this.chevron = true,
-      this.onTap});
+  const SetRow(
+    this.icon,
+    this.color,
+    this.title, {
+    super.key,
+    this.sub = '',
+    this.value = '',
+    this.danger = false,
+    this.chevron = true,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext c) {
@@ -47,44 +52,56 @@ class SetRow extends StatelessWidget {
       semanticLabel: sub.isEmpty ? title : '$title. $sub',
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: S.x3),
-        child: Row(children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration:
-                BoxDecoration(color: p.wash(accent), borderRadius: R.rSm),
-            child: Icon(icon, size: 16, color: p.on(accent)),
-          ),
-          const SizedBox(width: S.x3),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  style: F.body.copyWith(color: danger ? p.on(C.red) : p.ink)),
-              if (value.isNotEmpty && bigText(c))
-                Text(value,
-                    style: F.cap.copyWith(
-                        color: p.ink3, fontWeight: FontWeight.w600)),
-              if (sub.isNotEmpty)
-                Text(sub, style: F.over.copyWith(color: p.ink3)),
-            ]),
-          ),
-          // THE ROW RULE (see MetricRow): the title is the only flexible part,
-          // so every value in a settings list ends on one right edge. Two flex
-          // children would split the width by ratio and break that column.
-          // The value moves UNDER the title at accessibility sizes instead —
-          // "2026-08-16 04:12" is arbitrary-length, and at 3.1× it pushed
-          // itself and the chevron off the right of every settings screen.
-          if (value.isNotEmpty && !bigText(c)) ...[
-            const SizedBox(width: S.x2),
-            Text(value, style: F.cap.copyWith(color: p.ink3)),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: p.wash(accent),
+                borderRadius: R.rSm,
+              ),
+              child: Icon(icon, size: 16, color: p.on(accent)),
+            ),
+            const SizedBox(width: S.x3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: F.body.copyWith(color: danger ? p.on(C.red) : p.ink),
+                  ),
+                  if (value.isNotEmpty && bigText(c))
+                    Text(
+                      value,
+                      style: F.cap.copyWith(
+                        color: p.ink3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  if (sub.isNotEmpty)
+                    Text(sub, style: F.over.copyWith(color: p.ink3)),
+                ],
+              ),
+            ),
+            // THE ROW RULE (see MetricRow): the title is the only flexible part,
+            // so every value in a settings list ends on one right edge. Two flex
+            // children would split the width by ratio and break that column.
+            // The value moves UNDER the title at accessibility sizes instead —
+            // "2026-08-16 04:12" is arbitrary-length, and at 3.1× it pushed
+            // itself and the chevron off the right of every settings screen.
+            if (value.isNotEmpty && !bigText(c)) ...[
+              const SizedBox(width: S.x2),
+              Text(value, style: F.cap.copyWith(color: p.ink3)),
+            ],
+            if (chevron && !danger) ...[
+              const SizedBox(width: S.x2),
+              Icon(LucideIcons.chevronRight, size: 17, color: p.ink3),
+            ],
           ],
-          if (chevron && !danger) ...[
-            const SizedBox(width: S.x2),
-            Icon(LucideIcons.chevronRight, size: 17, color: p.ink3),
-          ],
-        ]),
+        ),
       ),
     );
   }
@@ -97,12 +114,14 @@ Widget settingsGroup(BuildContext c, String title, List<Widget> rows) {
     title,
     Surface(
       pad: const EdgeInsets.symmetric(horizontal: S.x4),
-      child: Column(children: [
-        for (var i = 0; i < rows.length; i++) ...[
-          rows[i],
-          if (i < rows.length - 1) Divider(color: p.line, height: 1),
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            rows[i],
+            if (i < rows.length - 1) Divider(color: p.line, height: 1),
+          ],
         ],
-      ]),
+      ),
     ),
   );
 }
@@ -167,8 +186,7 @@ class _ProfileHomeState extends State<ProfileHome> {
     final repo = app.repo;
     final sources = liveSources(app).length;
     if (repo == null) {
-      return ProfileStats(
-          name: app.user?['name'] as String?, sources: sources);
+      return ProfileStats(name: app.user?['name'] as String?, sources: sources);
     }
     final bytes = await app.dataFileBytes();
     return ProfileStats(
@@ -185,31 +203,33 @@ class _ProfileHomeState extends State<ProfileHome> {
 
   @override
   Widget build(BuildContext c) => FutureBuilder<ProfileStats>(
-        future: _stats,
-        builder: (c, snap) => ProfileHomeView(
-          stats: snap.data,
-          onDevices: () => _open(c, const MyDevices()),
-          onSettings: () => _open(c, const MoreSettings()),
-          onEdit: () => _open(c, const EditProfile()),
-          onCoach: () => _open(c, const CoachSetup()),
-        ),
-      );
+    future: _stats,
+    builder: (c, snap) => ProfileHomeView(
+      stats: snap.data,
+      onDevices: () => _open(c, const MyDevices()),
+      onSettings: () => _open(c, const MoreSettings()),
+      onEdit: () => _open(c, const EditProfile()),
+      onCoach: () => _open(c, const CoachSetup()),
+      onNutrition: () => _open(c, const NutritionScreen()),
+    ),
+  );
 }
 
 class ProfileHomeView extends StatelessWidget {
   /// Null while the counts are still being read — the numbers are absent, not
   /// zero, and a zero rendered during a load is a wrong number on screen.
   final ProfileStats? stats;
-  final VoidCallback? onDevices, onSettings, onEdit, onCoach;
+  final VoidCallback? onDevices, onSettings, onEdit, onCoach, onNutrition;
 
-  const ProfileHomeView(
-      {super.key,
-      this.stats,
-      this.onDevices,
-      this.onCoach,
-      this.onSettings,
-      this.onEdit,
-      });
+  const ProfileHomeView({
+    super.key,
+    this.stats,
+    this.onDevices,
+    this.onCoach,
+    this.onSettings,
+    this.onEdit,
+    this.onNutrition,
+  });
 
   @override
   Widget build(BuildContext c) {
@@ -218,75 +238,113 @@ class ProfileHomeView extends StatelessWidget {
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar('Profile',
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: S.x4),
+              child: NavBar(
+                'Profile',
                 trailing: Pressable(
                   onTap: onSettings,
                   semanticLabel: 'Settings',
                   child: Icon(LucideIcons.settings, size: 20, color: p.ink2),
-                )),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
-              children: [
-                const SizedBox(height: S.x4),
-                Center(
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: p.wash(C.green, strength: 2),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
+                children: [
+                  const SizedBox(height: S.x4),
+                  Center(
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: p.wash(C.green, strength: 2),
+                      ),
+                      child: Icon(
+                        LucideIcons.user,
+                        size: 42,
+                        color: p.on(C.green),
+                      ),
                     ),
-                    child:
-                        Icon(LucideIcons.user, size: 42, color: p.on(C.green)),
                   ),
-                ),
-                const SizedBox(height: S.x4),
-                Center(
-                  child: Text(
-                    (s?.name?.trim().isNotEmpty ?? false) ? s!.name! : 'You',
-                    style: F.t2.copyWith(color: p.ink),
+                  const SizedBox(height: S.x4),
+                  Center(
+                    child: Text(
+                      (s?.name?.trim().isNotEmpty ?? false) ? s!.name! : 'You',
+                      style: F.t2.copyWith(color: p.ink),
+                    ),
                   ),
-                ),
-                const SizedBox(height: S.x3),
-                const Center(
-                    child: Pill('Local · no cloud', C.green,
-                        icon: LucideIcons.shieldCheck)),
-                const SizedBox(height: S.x6),
-                settingsGroup(c, 'Quick access', [
-                  SetRow(LucideIcons.watch, C.blue, 'My devices',
+                  const SizedBox(height: S.x3),
+                  const Center(
+                    child: Pill(
+                      'Local · no cloud',
+                      C.green,
+                      icon: LucideIcons.shieldCheck,
+                    ),
+                  ),
+                  const SizedBox(height: S.x6),
+                  settingsGroup(c, 'Quick access', [
+                    SetRow(
+                      LucideIcons.watch,
+                      C.blue,
+                      'My devices',
                       sub: s == null
                           ? ''
                           : '${s.sources} source${s.sources == 1 ? '' : 's'}',
-                      onTap: onDevices),
-                  SetRow(LucideIcons.userPen, C.purple, 'Edit profile',
-                      sub: 'Sex, age, height, weight', onTap: onEdit),
-                  // THE ONLY DOOR TO THE COACH'S SETUP, and it has to be —
-                  // Home's sparkles button is now gated on `coachReady`, so on
-                  // a fresh install there is no icon to find it behind. It
-                  // belongs here anyway: a model, a base URL and a key are
-                  // settings, and the coach's own overflow menu offering the
-                  // same form was two doors onto one state.
-                  //
-                  // `watch` rather than `read` so the sub-line stops saying
-                  // "Not set up" the moment it is.
-                  Builder(builder: (c) => SetRow(
-                      LucideIcons.sparkles, C.purple, 'AI coach',
-                      sub: coachSubtitle(c) ?? 'Not set up',
-                      onTap: onCoach)),
-                ]),
-                settingsGroup(c, 'Your data', [
-                  SetRow(LucideIcons.database, C.green, 'Storage',
+                      onTap: onDevices,
+                    ),
+                    SetRow(
+                      LucideIcons.userPen,
+                      C.purple,
+                      'Edit profile',
+                      sub: 'Sex, age, height, weight',
+                      onTap: onEdit,
+                    ),
+                    // THE ONLY DOOR TO THE COACH'S SETUP, and it has to be —
+                    // Home's sparkles button is now gated on `coachReady`, so on
+                    // a fresh install there is no icon to find it behind. It
+                    // belongs here anyway: a model, a base URL and a key are
+                    // settings, and the coach's own overflow menu offering the
+                    // same form was two doors onto one state.
+                    //
+                    // `watch` rather than `read` so the sub-line stops saying
+                    // "Not set up" the moment it is.
+                    Builder(
+                      builder: (c) => SetRow(
+                        LucideIcons.sparkles,
+                        C.purple,
+                        'AI coach',
+                        sub: coachSubtitle(c) ?? 'Not set up',
+                        onTap: onCoach,
+                      ),
+                    ),
+                    SetRow(
+                      LucideIcons.utensils,
+                      C.domFood,
+                      'Nutrition & hydration',
+                      sub: 'Food, water and daily goals',
+                      onTap: onNutrition,
+                    ),
+                  ]),
+                  settingsGroup(c, 'Your data', [
+                    SetRow(
+                      LucideIcons.database,
+                      C.green,
+                      'Storage',
                       value: s?.storageBytes == null
                           ? ''
                           : formatBytes(s!.storageBytes!),
-                      chevron: false),
-                  SetRow(LucideIcons.settings, C.n500, 'More settings',
+                      chevron: false,
+                    ),
+                    SetRow(
+                      LucideIcons.settings,
+                      C.n500,
+                      'More settings',
                       // `From $storeName` used to sit on Quick access too. It
                       // came off: height, weight and workouts already moved to
                       // the screens they fill, and what is left — a resting
@@ -294,16 +352,18 @@ class ProfileHomeView extends StatelessWidget {
                       // instruments this band does not have — is not quick and
                       // is not accessed often. It keeps its one door here, and
                       // this line names it so the door is findable.
-                      sub: 'Import from $storeName, export, backup, units, '
+                      sub:
+                          'Import from $storeName, export, backup, units, '
                           'privacy, reset',
-                      onTap: onSettings),
-                ]),
-              ],
+                      onTap: onSettings,
+                    ),
+                  ]),
+                ],
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
-
 }
